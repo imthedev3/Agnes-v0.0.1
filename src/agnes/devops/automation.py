@@ -157,3 +157,146 @@ class InfrastructureManager:
     async def _run_terraform_command(self, *args):
         """Run Terraform command"""
         process = await asyncio.create_subprocess_exec(
+            'terraform',
+            *args,
+            cwd=self.terraform_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode != 0:
+            raise Exception(f"Terraform command failed: {stderr.decode()}")
+        
+        return stdout.decode()
+
+class MonitoringAutomation:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.prometheus_config = config['prometheus']
+        self.grafana_config = config['grafana']
+    
+    async def update_monitoring_config(self):
+        """Update monitoring configuration"""
+        # Update Prometheus configuration
+        await self._update_prometheus_config()
+        
+        # Update Grafana dashboards
+        await self._update_grafana_dashboards()
+    
+    async def _update_prometheus_config(self):
+        """Update Prometheus configuration"""
+        config_template = self.template_env.get_template(
+            'prometheus/prometheus.yml.j2'
+        )
+        config_content = config_template.render(**self.prometheus_config)
+        
+        # Write configuration
+        with open('/etc/prometheus/prometheus.yml', 'w') as f:
+            f.write(config_content)
+        
+        # Reload Prometheus
+        await self._reload_prometheus()
+    
+    async def _reload_prometheus(self):
+        """Reload Prometheus configuration"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.prometheus_config['url']}/-/reload"
+                ) as response:
+                    if response.status != 200:
+                        raise Exception("Failed to reload Prometheus")
+        except Exception as e:
+            self.logger.error(f"Error reloading Prometheus: {e}")
+            raise
+
+class BackupManager:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.backup_path = config['backup_path']
+    
+    async def create_backup(self, service: str):
+        """Create backup for service"""
+        backup_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_file = f"{self.backup_path}/{service}_{backup_time}.tar.gz"
+        
+        if service == 'database':
+            await self._backup_database(backup_file)
+        elif service == 'files':
+            await self._backup_files(backup_file)
+        else:
+            raise ValueError(f"Unsupported backup service: {service}")
+    
+    async def _backup_database(self, backup_file: str):
+        """Backup database"""
+        cmd = [
+            'pg_dump',
+            '-h', self.config['database']['host'],
+            '-U', self.config['database']['user'],
+            '-d', self.config['database']['name'],
+            '-F', 'c',
+            '-f', backup_file
+        ]
+        
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            env={'PGPASSWORD': self.config['database']['password']}
+        )
+        
+        await process.wait()
+        if process.returncode != 0:
+            raise Exception("Database backup failed")
+    
+    async def _backup_files(self, backup_file: str):
+        """Backup files"""
+        cmd = [
+            'tar',
+            '-czf',
+            backup_file,
+            self.config['files']['path']
+        ]
+        
+        process = await asyncio.create_subprocess_exec(*cmd)
+        await process.wait()
+        
+        if process.returncode != 0:
+            raise Exception("File backup failed")
+
+class AutomationOrchestrator:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.automation = AutomationManager(config)
+        self.ansible = AnsibleAutomation(config)
+        self.infrastructure = InfrastructureManager(config)
+        self.monitoring = MonitoringAutomation(config)
+        self.backup = BackupManager(config)
+    
+    async def deploy_full_stack(self, config: Dict[str, Any]):
+        """Deploy full application stack"""
+        try:
+            # Setup infrastructure
+            await self.infrastructure.apply_infrastructure(
+                'infrastructure.tf.j2',
+                config['infrastructure']
+            )
+            
+            # Deploy services
+            for service in config['services']:
+                deployment = DeploymentConfig(**service)
+                await self.automation.deploy_service(deployment)
+            
+            # Configure monitoring
+            await self.monitoring.update_monitoring_config()
+            
+            # Run post-deployment tasks
+            await self.ansible.run_playbook(
+                'post_deploy.yml',
+                config['post_deploy']
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Deployment failed: {e}")
+            # Implement rollback logic here
+            raise
