@@ -1,0 +1,142 @@
+backup:
+  enabled: true
+  
+  storage:
+    type: mysql
+    mysql:
+      host: "mysql"
+      port: 3306
+      user: "agnes"
+      password: "${MYSQL_PASSWORD}"
+      db: "agnes"
+      charset: "utf8mb4"
+  
+  sources:
+    mysql:
+      host: "mysql"
+      port: 3306
+      user: "agnes"
+      password: "${MYSQL_PASSWORD}"
+      databases:
+        - "agnes"
+        - "agnes_analytics"
+    
+    redis:
+      url: "redis://redis:6379"
+      dir: "/var/lib/redis"
+      databases:
+        - 0  # Main DB
+        - 1  # Cache
+    
+    files:
+      paths:
+        - "/var/lib/agnes/data"
+        - "/var/lib/agnes/config"
+        - "/var/log/agnes"
+  
+  destinations:
+    s3:
+      bucket: "agnes-backups"
+      prefix: "backups"
+      region: "us-east-1"
+      encryption: "AES256"
+    
+    local:
+      path: "/var/backups/agnes"
+      max_size: "500GB"
+      cleanup_age: 30  # days
+  
+  schedule:
+    mysql:
+      full:
+        schedule: "0 0 * * 0"  # Weekly
+        retention: 30  # days
+      incremental:
+        schedule: "0 0 * * 1-6"  # Daily except Sunday
+        retention: 7  # days
+    
+    redis:
+      full:
+        schedule: "0 1 * * *"  # Daily at 1 AM
+        retention: 7  # days
+    
+    files:
+      full:
+        schedule: "0 2 * * 0"  # Weekly at 2 AM
+        retention: 30  # days
+      incremental:
+        schedule: "0 2 * * 1-6"  # Daily at 2 AM
+        retention: 7  # days
+  
+  compression:
+    enabled: true
+    algorithm: "gzip"
+    level: 6
+  
+  encryption:
+    enabled: true
+    algorithm: "AES256"
+    key: "${BACKUP_ENCRYPTION_KEY}"
+  
+  verify:
+    enabled: true
+    checksum: true
+    restore_test:
+      enabled: true
+      schedule: "0 3 * * 0"  # Weekly at 3 AM
+      cleanup: true
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - "backup_size"
+      - "backup_duration"
+      - "backup_status"
+      - "backup_age"
+    prometheus:
+      enabled: true
+      port: 9091
+  
+  notifications:
+    enabled: true
+    events:
+      - "backup_start"
+      - "backup_complete"
+      - "backup_failed"
+      - "verify_failed"
+    slack:
+      enabled: true
+      webhook_url: "${SLACK_WEBHOOK_URL}"
+      channel: "#backups"
+    email:
+      enabled: true
+      from: "backup@agnes.ai"
+      to:
+        - "ops@agnes.ai"
+  
+  logging:
+    level: "INFO"
+    format: "json"
+    outputs:
+      - type: "file"
+        path: "/var/log/agnes/backup.log"
+      - type: "elasticsearch"
+        url: "http://elasticsearch:9200"
+        index: "agnes-backup"
+  
+  cleanup:
+    enabled: true
+    schedule: "0 4 * * *"  # Daily at 4 AM
+    policies:
+      - type: "age"
+        max_age: 30  # days
+      - type: "count"
+        max_count: 100
+      - type: "size"
+        max_size: "500GB"
+  
+  recovery:
+    temp_dir: "/tmp/agnes-recovery"
+    parallel_restores: 2
+    verify_after_restore: true
+    notify_on_restore: true
