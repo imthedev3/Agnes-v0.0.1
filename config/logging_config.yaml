@@ -1,0 +1,64 @@
+logging:
+  level: INFO
+  format: json
+  
+  elasticsearch:
+    hosts:
+      - "http://elasticsearch:9200"
+    index_pattern: "agnes-logs"
+    batch_size: 100
+    flush_interval: 5
+    retention_days: 30
+  
+  file:
+    enabled: true
+    path: "/var/log/agnes/agnes.log"
+    rotation:
+      max_size: 104857600  # 100MB
+      backup_count: 5
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - name: log_messages_total
+        type: counter
+        labels:
+          - level
+          - service
+      - name: log_errors_total
+        type: counter
+        labels:
+          - service
+          - error_type
+  
+  filters:
+    sensitive_fields:
+      - password
+      - token
+      - secret
+      - key
+    exclude_paths:
+      - /health
+      - /metrics
+  
+  context:
+    service_name: agnes
+    environment: production
+    include_fields:
+      - trace_id
+      - span_id
+      - user_id
+      - request_id
+
+  alerts:
+    enabled: true
+    thresholds:
+      error_rate: 0.01  # 1% of total logs
+      error_count: 100  # per minute
+    notifications:
+      slack:
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#agnes-alerts"
+      email:
+        recipients:
+          - "ops@agnes.ai"
