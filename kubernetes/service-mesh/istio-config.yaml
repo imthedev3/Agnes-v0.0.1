@@ -1,0 +1,93 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+spec:
+  profile: default
+  components:
+    egressGateways:
+    - name: istio-egressgateway
+      enabled: true
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+    pilot:
+      enabled: true
+  values:
+    global:
+      proxy:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      
+    pilot:
+      autoscaleEnabled: true
+      autoscaleMin: 1
+      autoscaleMax: 5
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2048Mi
+        limits:
+          cpu: 1000m
+          memory: 4096Mi
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: agnes-vs
+  namespace: agnes
+spec:
+  hosts:
+  - "api.agnes.ai"
+  gateways:
+  - agnes-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api/v1"
+    route:
+    - destination:
+        host: agnes-service
+        port:
+          number: 80
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
+      abort:
+        percentage:
+          value: 0.1
+        httpStatus: 500
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: agnes-auth
+  namespace: agnes
+spec:
+  selector:
+    matchLabels:
+      app: agnes
+  rules:
+  - from:
+    - source:
+        namespaces: ["agnes"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/*"]
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://agnes.ai"]
