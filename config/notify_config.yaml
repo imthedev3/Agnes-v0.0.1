@@ -1,0 +1,139 @@
+notify:
+  enabled: true
+  default_priority: "normal"
+  
+  templates:
+    path: "templates/notifications"
+    defaults:
+      layout: "default.html"
+      signature: "Best regards,\nAgnes Team"
+  
+  email:
+    enabled: true
+    from_address: "notifications@agnes.ai"
+    reply_to: "support@agnes.ai"
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    use_tls: true
+    username: "${SMTP_USERNAME}"
+    password: "${SMTP_PASSWORD}"
+    templates:
+      alert: "email/alert.html"
+      digest: "email/digest.html"
+      welcome: "email/welcome.html"
+  
+  sms:
+    enabled: true
+    provider: "twilio"
+    account_sid: "${TWILIO_ACCOUNT_SID}"
+    auth_token: "${TWILIO_AUTH_TOKEN}"
+    from_number: "+1234567890"
+    templates:
+      alert: "sms/alert.txt"
+      verification: "sms/verification.txt"
+  
+  push:
+    enabled: true
+    provider: "firebase"
+    server_key: "${FIREBASE_SERVER_KEY}"
+    templates:
+      alert: "push/alert.json"
+      update: "push/update.json"
+  
+  slack:
+    enabled: true
+    bot_token: "${SLACK_BOT_TOKEN}"
+    default_channel: "#general"
+    templates:
+      alert: "slack/alert.md"
+      report: "slack/report.md"
+  
+  discord:
+    enabled: true
+    bot_token: "${DISCORD_BOT_TOKEN}"
+    default_channel: "general"
+    templates:
+      alert: "discord/alert.md"
+      announcement: "discord/announcement.md"
+  
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    templates:
+      alert: "telegram/alert.md"
+      news: "telegram/news.md"
+  
+  webhook:
+    enabled: true
+    secret: "${WEBHOOK_SECRET}"
+    retry:
+      max_attempts: 3
+      delay: 5
+    timeout: 10
+  
+  batching:
+    enabled: true
+    batch_size: 10
+    interval: 300
+    max_delay: 3600
+  
+  rate_limits:
+    email: 3600
+    email_count: 100
+    sms: 3600
+    sms_count: 50
+    push: 3600
+    push_count: 1000
+    slack: 60
+    slack_count: 30
+    discord: 60
+    discord_count: 30
+    telegram: 60
+    telegram_count: 30
+  
+  deduplication:
+    enabled: true
+    ttl: 3600
+    key_template: "{type}:{recipient}:{subject}"
+  
+  scheduling:
+    enabled: true
+    timezone: "UTC"
+    digest:
+      schedule: "0 8 * * *"  # Daily at 8 AM
+      types:
+        - "email"
+        - "slack"
+    reminder:
+      schedule: "*/15 * * * *"  # Every 15 minutes
+      types:
+        - "push"
+        - "sms"
+  
+  tracking:
+    enabled: true
+    storage:
+      type: "elasticsearch"
+      url: "http://elasticsearch:9200"
+      index: "notifications"
+    metrics:
+      enabled: true
+      prometheus:
+        namespace: "agnes"
+        subsystem: "notifications"
+  
+  templates_data:
+    company:
+      name: "Agnes AI"
+      website: "https://agnes.ai"
+      support_email: "support@agnes.ai"
+    social:
+      twitter: "@agnesai"
+      linkedin: "agnes-ai"
+    colors:
+      primary: "#007bff"
+      secondary: "#6c757d"
+      success: "#28a745"
+      danger: "#dc3545"
+    logo_url: "https://agnes.ai/logo.png"
+    app_url: "https://app.agnes.ai"
