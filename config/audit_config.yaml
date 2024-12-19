@@ -1,0 +1,165 @@
+audit:
+  enabled: true
+  environment: "production"
+  
+  storage:
+    type: elasticsearch
+    elasticsearch:
+      url: "http://elasticsearch:9200"
+      index_prefix: "audit"
+      index_settings:
+        number_of_shards: 1
+        number_of_replicas: 1
+      retention_days: 365
+    
+    mysql:
+      host: "mysql"
+      port: 3306
+      user: "agnes"
+      password: "${MYSQL_PASSWORD}"
+      db: "agnes"
+      charset: "utf8mb4"
+  
+  cache:
+    redis_url: "redis://redis:6379/4"
+    alert_ttl: 3600
+  
+  kafka:
+    enabled: true
+    brokers:
+      - "kafka:9092"
+    topic: "agnes-audit"
+    retention_ms: 604800000  # 7 days
+  
+  filters:
+    exclude_paths:
+      - "/health"
+      - "/metrics"
+    exclude_users:
+      - "system"
+    exclude_ip_addresses:
+      - "127.0.0.1"
+  
+  levels:
+    debug:
+      enabled: false
+    info:
+      enabled: true
+    warning:
+      enabled: true
+      alert: true
+    error:
+      enabled: true
+      alert: true
+    critical:
+      enabled: true
+      alert: true
+  
+  masking:
+    enabled: true
+    fields:
+      - "password"
+      - "token"
+      - "secret"
+      - "credit_card"
+    patterns:
+      - type: "credit_card"
+        regex: "\d{4}-\d{4}-\d{4}-\d{4}"
+        mask: "XXXX-XXXX-XXXX-****"
+      - type: "email"
+        regex: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+        mask: "****@****.***"
+  
+  retention:
+    enabled: true
+    schedule: "0 0 * * *"  # Daily
+    policies:
+      - level: "debug"
+        days: 7
+      - level: "info"
+        days: 30
+      - level: "warning"
+        days: 90
+      - level: "error"
+        days: 365
+      - level: "critical"
+        days: 730
+  
+  export:
+    enabled: true
+    formats:
+      - csv
+      - json
+    storage:
+      type: s3
+      bucket: "agnes-audit-exports"
+      prefix: "exports"
+      retention_days: 30
+  
+  alerts:
+    enabled: true
+    transports:
+      slack:
+        enabled: true
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#audit-alerts"
+      
+      email:
+        enabled: true
+        from: "audit@agnes.ai"
+        to:
+          - "security@agnes.ai"
+      
+      webhook:
+        enabled: true
+        url: "https://hooks.agnes.ai/audit"
+        secret: "${WEBHOOK_SECRET}"
+  
+  compliance:
+    standards:
+      - name: "SOC2"
+        enabled: true
+        requirements:
+          - control: "CC6.1"
+            events:
+              - action: "login"
+              - action: "logout"
+          - control: "CC7.2"
+            events:
+              - action: "update"
+              - action: "delete"
+      
+      - name: "GDPR"
+        enabled: true
+        requirements:
+          - control: "Article 30"
+            events:
+              - resource_type: "user_data"
+          - control: "Article 32"
+            events:
+              - level: "error"
+              - level: "critical"
+  
+  reporting:
+    enabled: true
+    schedule: "0 0 * * 0"  # Weekly
+    reports:
+      - name: "Security Events"
+        filters:
+          level:
+            - "warning"
+            - "error"
+            - "critical"
+        format: "pdf"
+        recipients:
+          - "security@agnes.ai"
+      
+      - name: "User Activity"
+        filters:
+          action:
+            - "login"
+            - "logout"
+            - "update"
+        format: "csv"
+        recipients:
+          - "compliance@agnes.ai"
