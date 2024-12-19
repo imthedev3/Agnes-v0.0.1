@@ -1,0 +1,37 @@
+cache:
+  default:
+    backend: redis
+    ttl: 3600  # 1 hour
+    namespace: agnes
+    servers:
+      - "redis-1:6379"
+      - "redis-2:6379"
+      - "redis-3:6379"
+  
+  memory:
+    backend: memory
+    ttl: 300  # 5 minutes
+    max_size: 10000
+    namespace: agnes_memory
+  
+  distributed:
+    backend: distributed
+    ttl: 7200  # 2 hours
+    namespace: agnes_distributed
+    servers:
+      - "cache-1:6379"
+      - "cache-2:6379"
+      - "cache-3:6379"
+    
+  patterns:
+    user_data:
+      ttl: 1800  # 30 minutes
+      pattern: "user:*"
+    
+    session:
+      ttl: 86400  # 24 hours
+      pattern: "session:*"
+    
+    temporary:
+      ttl: 60  # 1 minute
+      pattern: "temp:*"
