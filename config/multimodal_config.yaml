@@ -1,0 +1,32 @@
+modalities:
+  text:
+    input_size: 768
+    hidden_size: 512
+    output_size: 256
+    dropout: 0.1
+  
+  image:
+    input_size: 2048
+    hidden_size: 1024
+    output_size: 256
+    dropout: 0.1
+  
+  audio:
+    input_size: 1024
+    hidden_size: 512
+    output_size: 256
+    dropout: 0.1
+
+fusion:
+  fusion_dim: 256
+  num_attention_heads: 8
+  dropout: 0.1
+
+training:
+  batch_size: 32
+  learning_rate: 0.0001
+  num_epochs: 100
+  gradient_accumulation_steps: 4
+  distributed: true
+  num_gpus: 4
+  checkpoint_dir: "checkpoints/"
