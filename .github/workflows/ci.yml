@@ -1,0 +1,93 @@
+name: AGNES CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9]
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+    
+    - name: Install dependencies
+      run: |
+        poetry install
+    
+    - name: Run tests
+      run: |
+        poetry run pytest tests/ --cov=agnes --cov-report=xml
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v2
+      with:
+        file: ./coverage.xml
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies
+      run: |
+        pip install black isort flake8
+    
+    - name: Run linters
+      run: |
+        black --check src tests
+        isort --check-only src tests
+        flake8 src tests
+
+  deploy:
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+    
+    - name: Build and push Docker image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: agnes
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+    
+    - name: Deploy to ECS
+      run: |
+        aws ecs update-service --cluster agnes-cluster \
+          --service agnes-service \
+          --force-new-deployment
