@@ -1,0 +1,139 @@
+workflow:
+  engine:
+    max_concurrent_workflows: 100
+    max_concurrent_tasks: 500
+    default_timeout: 3600
+    storage:
+      type: redis
+      url: "redis://redis:6379/0"
+  
+  registry:
+    paths:
+      - "/etc/agnes/workflows"
+      - "/opt/agnes/workflows"
+    auto_reload: true
+    reload_interval: 300
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - name: workflow_executions_total
+        type: counter
+        labels:
+          - workflow
+          - status
+      - name: task_executions_total
+        type: counter
+        labels:
+          - workflow
+          - task
+          - status
+      - name: workflow_duration_seconds
+        type: histogram
+        labels:
+          - workflow
+      - name: task_duration_seconds
+        type: histogram
+        labels:
+          - workflow
+          - task
+  
+  handlers:
+    http:
+      timeout: 30
+      retry_count: 3
+      max_redirects: 5
+    
+    shell:
+      timeout: 60
+      allowed_commands:
+        - curl
+        - wget
+        - tar
+        - gzip
+    
+    python:
+      timeout: 30
+      max_memory: 512
+      allowed_modules:
+        - json
+        - yaml
+        - requests
+        - pandas
+  
+  notifications:
+    enabled: true
+    events:
+      - workflow_started
+      - workflow_completed
+      - workflow_failed
+      - task_failed
+    handlers:
+      - type: email
+        recipients:
+          - "ops@agnes.ai"
+      - type: slack
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#workflows"
+
+workflows:
+  data_sync:
+    name: "Database Synchronization"
+    timeout: 7200
+    on_failure: retry
+    max_retries: 3
+    tasks:
+      - name: export_data
+        handler: database.export
+        inputs:
+          connection: "${SOURCE_DB_URL}"
+          query: "SELECT * FROM users WHERE updated_at > :last_sync"
+        outputs:
+          - data_file
+      
+      - name: transform_data
+        handler: python.transform
+        inputs:
+          input_file: "@export_data.data_file"
+          mapping:
+            user_id: id
+            full_name: name
+            email_address: email
+        outputs:
+          - transformed_file
+        dependencies:
+          - export_data
+      
+      - name: import_data
+        handler: database.import
+        inputs:
+          connection: "${TARGET_DB_URL}"
+          data_file: "@transform_data.transformed_file"
+        dependencies:
+          - transform_data
+  
+  backup:
+    name: "System Backup"
+    timeout: 3600
+    tasks:
+      - name: backup_database
+        handler: database.backup
+        inputs:
+          connection: "${DB_URL}"
+          output_dir: "/backups/db"
+      
+      - name: backup_files
+        handler: shell.command
+        inputs:
+          command: "tar -czf /backups/files.tar.gz /data"
+      
+      - name: upload_backup
+        handler: s3.upload
+        inputs:
+          bucket: "agnes-backups"
+          files:
+            - "@backup_database.backup_file"
+            - "@backup_files.archive"
+        dependencies:
+          - backup_database
+          - backup_files
