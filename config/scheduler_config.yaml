@@ -1,0 +1,67 @@
+scheduler:
+  enabled: true
+  timezone: UTC
+  
+  persistence:
+    enabled: true
+    path: "/var/lib/agnes/tasks"
+    backup:
+      enabled: true
+      interval: 86400  # 24 hours
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - name: task_executions_total
+        type: counter
+        labels:
+          - task_name
+          - status
+      - name: task_duration_seconds
+        type: histogram
+        labels:
+          - task_name
+  
+  notification:
+    enabled: true
+    events:
+      - task_failed
+      - task_timeout
+      - retry_exceeded
+    handlers:
+      - type: slack
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#agnes-tasks"
+      - type: email
+        recipients:
+          - "ops@agnes.ai"
+  
+  defaults:
+    timeout: 3600  # 1 hour
+    retry_count: 3
+    retry_delay: 300  # 5 minutes
+    tags:
+      - automated
+  
+  tasks:
+    backup_database:
+      cron: "0 0 * * *"  # Daily at midnight
+      timeout: 7200
+      retry_count: 2
+      tags:
+        - backup
+        - database
+    
+    cleanup_logs:
+      cron: "0 1 * * *"  # Daily at 1 AM
+      timeout: 1800
+      tags:
+        - maintenance
+        - cleanup
+    
+    update_metrics:
+      cron: "*/5 * * * *"  # Every 5 minutes
+      timeout: 300
+      tags:
+        - monitoring
+        - metrics
