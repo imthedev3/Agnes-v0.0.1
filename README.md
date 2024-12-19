@@ -44,7 +44,7 @@ model = agnes.load_model("my-model")
 # Make prediction
 result = model.predict(data)
 
-🏗️ Architecture
+## 🏗️ Architecture
 Core Components
 Model Management System: Manages the complete lifecycle of AI models
 Training System: Supports distributed training and experiment management
@@ -54,7 +54,7 @@ Monitoring System: Comprehensive system monitoring and alerting
 API Gateway: Unified API management and access control
 Microservice Framework: Scalable microservice architecture support
 
-📚 Component Examples
+## 📚 Component Examples
 Model Management
 # Create model
 model = agnes.create_model("my-model")
