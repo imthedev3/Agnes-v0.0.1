@@ -1,0 +1,63 @@
+docs:
+  title: "AGNES API Documentation"
+  version: "1.0.0"
+  description: "API documentation for the AGNES system"
+  
+  servers:
+    - "https://api.agnes.ai"
+    - "http://localhost:8000"
+  
+  templates:
+    path: "/opt/agnes/templates"
+    theme: "default"
+  
+  output:
+    openapi: "/var/www/html/api-docs/openapi.yaml"
+    html: "/var/www/html/api-docs/index.html"
+    markdown: "/var/www/html/api-docs/api.md"
+  
+  server:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8088
+    base_path: "/docs"
+  
+  security_schemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  
+  ui:
+    enabled: true
+    theme: "dark"
+    features:
+      - search
+      - examples
+      - schemas
+    plugins:
+      - name: "rapidoc"
+        enabled: true
+      - name: "redoc"
+        enabled: true
+  
+  generation:
+    auto_generate: true
+    watch_paths:
+      - "/opt/agnes/src/routes"
+    exclude_paths:
+      - "/internal"
+      - "/debug"
+    
+    examples:
+      enabled: true
+      max_count: 3
+    
+    markdown:
+      enabled: true
+      toc: true
+      code_highlighting: true
