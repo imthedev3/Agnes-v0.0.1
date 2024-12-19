@@ -1,0 +1,210 @@
+microservice:
+  enabled: true
+  
+  service:
+    name: "agnes-service"
+    version: "1.0.0"
+    host: "0.0.0.0"
+    port: 8080
+  
+  discovery:
+    enabled: true
+    consul:
+      host: "consul"
+      port: 8500
+      register: true
+      deregister: true
+      health_check:
+        enabled: true
+        interval: "10s"
+        timeout: "5s"
+  
+  communication:
+    nats:
+      enabled: true
+      url: "nats://nats:4222"
+      max_reconnects: 60
+      reconnect_time_wait: 2
+    
+    rabbitmq:
+      enabled: true
+      url: "amqp://guest:guest@rabbitmq:5672/"
+      exchanges:
+        - name: "events"
+          type: "topic"
+      queues:
+        - name: "default"
+          durable: true
+    
+    grpc:
+      enabled: true
+      port: 50051
+      max_workers: 10
+      keepalive: 60
+  
+  metrics:
+    enabled: true
+    collectors:
+      - type: "counter"
+        name: "requests_total"
+        help: "Total requests processed"
+        labels: ["method", "endpoint", "status"]
+      
+      - type: "histogram"
+        name: "request_duration_seconds"
+        help: "Request duration in seconds"
+        labels: ["method", "endpoint"]
+        buckets: [0.1, 0.5, 1.0, 2.0, 5.0]
+      
+      - type: "gauge"
+        name: "dependencies_up"
+        help: "Dependencies status"
+        labels: ["name"]
+    
+    prometheus:
+      enabled: true
+      port: 9095
+  
+  tracing:
+    enabled: true
+    service_name: "agnes-service"
+    jaeger:
+      host: "jaeger"
+      port: 6831
+      sampler:
+        type: "const"
+        param: 1
+  
+  logging:
+    level: "INFO"
+    format: "json"
+    handlers:
+      console:
+        enabled: true
+        format: "json"
+      
+      file:
+        enabled: true
+        path: "/var/log/agnes/service.log"
+        max_size: 100
+        backup_count: 5
+      
+      elasticsearch:
+        enabled: true
+        hosts: ["elasticsearch:9200"]
+        index: "agnes-service-logs"
+  
+  auth:
+    enabled: true
+    jwt:
+      secret: "${JWT_SECRET}"
+      algorithm: "HS256"
+      expire: 3600
+    
+    api_keys:
+      enabled: true
+      header: "X-API-Key"
+  
+  cache:
+    enabled: true
+    type: "redis"
+    redis:
+      url: "redis://redis:6379/13"
+      timeout: 1
+      retry: 3
+  
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    reset_timeout: 60
+  
+  retry:
+    enabled: true
+    max_attempts: 3
+    initial_delay: 1
+    max_delay: 30
+    exponential: true
+  
+  rate_limit:
+    enabled: true
+    default_limit: 1000
+    window: 60
+  
+  validation:
+    enabled: true
+    schemas_dir: "schemas"
+  
+  dependencies:
+    services:
+      - name: "auth-service"
+        required: true
+        timeout: 5
+      - name: "storage-service"
+        required: true
+        timeout: 5
+    
+    databases:
+      - name: "mysql"
+        host: "mysql"
+        port: 3306
+        user: "agnes"
+        password: "${MYSQL_PASSWORD}"
+        database: "agnes"
+      
+      - name: "redis"
+        host: "redis"
+        port: 6379
+        database: 0
+  
+  health:
+    enabled: true
+    path: "/health"
+    interval: 30
+    checks:
+      - name: "database"
+        type: "mysql"
+        timeout: 5
+      
+      - name: "cache"
+        type: "redis"
+        timeout: 5
+      
+      - name: "dependencies"
+        type: "http"
+        timeout: 5
+  
+  documentation:
+    enabled: true
+    type: "openapi"
+    path: "/docs"
+    title: "Agnes Service API"
+    version: "1.0.0"
+    description: "Agnes microservice API documentation"
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - "cpu_usage"
+      - "memory_usage"
+      - "request_count"
+      - "error_count"
+    alerts:
+      - name: "high_error_rate"
+        query: "error_rate > 0.1"
+        duration: "5m"
+        severity: "warning"
+  
+  security:
+    enabled: true
+    cors:
+      enabled: true
+      allowed_origins: ["*"]
+    
+    rate_limit:
+      enabled: true
+      limit: 1000
+      window: 60
+    
+    input_validation:
+      enabled: true
+      max_body_size: "1MB"
