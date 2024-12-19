@@ -1,0 +1,41 @@
+security_testing:
+  host: "api.agnes.ai"
+  api_url: "https://api.agnes.ai"
+  jwt_secret: "${JWT_SECRET}"
+  
+  test_endpoints:
+    - "/api/v1/users"
+    - "/api/v1/data"
+    - "/api/v1/process"
+  
+  ssl_configuration:
+    min_version: "TLSv1.2"
+    ciphers:
+      - "ECDHE-ECDSA-AES128-GCM-SHA256"
+      - "ECDHE-RSA-AES128-GCM-SHA256"
+      - "ECDHE-ECDSA-AES256-GCM-SHA384"
+      - "ECDHE-RSA-AES256-GCM-SHA384"
+  
+  network_security:
+    allowed_ports:
+      - 80
+      - 443
+      - 8000
+      - 9090
+    scan_timeout: 300
+  
+  vulnerability_scanning:
+    enabled: true
+    scan_schedule: "0 0 * * *"
+    severity_threshold: "HIGH"
+    ignore_cves:
+      - "CVE-2023-XXXXX"
+  
+  penetration_testing:
+    enabled: true
+    test_types:
+      - "sql_injection"
+      - "xss"
+      - "csrf"
+      - "authentication_bypass"
+    max_requests_per_second: 10
