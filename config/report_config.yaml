@@ -1,0 +1,179 @@
+report:
+  enabled: true
+  
+  storage:
+    type: s3
+    s3:
+      bucket: "agnes-reports"
+      prefix: "reports"
+      region: "us-east-1"
+    file:
+      path: "/var/lib/agnes/reports"
+  
+  templates:
+    path: "templates/reports"
+    defaults:
+      layout: "default.html"
+      css:
+        - "bootstrap.min.css"
+        - "custom.css"
+      js:
+        - "plotly.min.js"
+        - "custom.js"
+  
+  types:
+    metrics:
+      enabled: true
+      sources:
+        - type: "prometheus"
+          url: "http://prometheus:9090"
+        - type: "elasticsearch"
+          url: "http://elasticsearch:9200"
+          index: "metrics-*"
+      aggregations:
+        - type: "avg"
+          window: "1h"
+        - type: "max"
+          window: "1d"
+      visualizations:
+        - type: "line"
+          metrics:
+            - "cpu_usage"
+            - "memory_usage"
+        - type: "bar"
+          metrics:
+            - "request_count"
+            - "error_count"
+    
+    audit:
+      enabled: true
+      sources:
+        - type: "elasticsearch"
+          url: "http://elasticsearch:9200"
+          index: "audit-*"
+      filters:
+        severity:
+          - "error"
+          - "warning"
+      aggregations:
+        - type: "count"
+          field: "action"
+        - type: "terms"
+          field: "user_id"
+    
+    usage:
+      enabled: true
+      sources:
+        - type: "mysql"
+          host: "mysql"
+          port: 3306
+          user: "agnes"
+          password: "${MYSQL_PASSWORD}"
+          database: "agnes"
+      metrics:
+        - name: "active_users"
+          query: "SELECT DATE(created_at) as date, COUNT(*) as count FROM users GROUP BY date"
+        - name: "api_calls"
+          query: "SELECT endpoint, COUNT(*) as count FROM api_logs GROUP BY endpoint"
+    
+    performance:
+      enabled: true
+      sources:
+        - type: "prometheus"
+          url: "http://prometheus:9090"
+      metrics:
+        - name: "response_time"
+          query: 'histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))'
+        - name: "error_rate"
+          query: 'sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))'
+    
+    security:
+      enabled: true
+      sources:
+        - type: "elasticsearch"
+          url: "http://elasticsearch:9200"
+          index: "security-*"
+      alerts:
+        - type: "login_failures"
+          threshold: 5
+        - type: "suspicious_ips"
+          threshold: 10
+    
+    compliance:
+      enabled: true
+      standards:
+        - name: "SOC2"
+          controls:
+            - "CC6.1"
+            - "CC7.2"
+        - name: "GDPR"
+          articles:
+            - "Article 30"
+            - "Article 32"
+    
+    financial:
+      enabled: true
+      sources:
+        - type: "mysql"
+          host: "mysql"
+          database: "agnes_billing"
+      metrics:
+        - name: "monthly_revenue"
+          query: "SELECT DATE_FORMAT(date, '%Y-%m') as month, SUM(amount) as revenue FROM transactions GROUP BY month"
+        - name: "customer_spend"
+          query: "SELECT customer_id, SUM(amount) as total FROM transactions GROUP BY customer_id ORDER BY total DESC LIMIT 10"
+  
+  scheduling:
+    enabled: true
+    cron:
+      daily:
+        schedule: "0 0 * * *"
+        reports:
+          - type: "metrics"
+            format: "pdf"
+          - type: "audit"
+            format: "csv"
+      weekly:
+        schedule: "0 0 * * 0"
+        reports:
+          - type: "usage"
+            format: "excel"
+          - type: "performance"
+            format: "html"
+      monthly:
+        schedule: "0 0 1 * *"
+        reports:
+          - type: "security"
+            format: "pdf"
+          - type: "compliance"
+            format: "pdf"
+          - type: "financial"
+            format: "excel"
+  
+  notifications:
+    enabled: true
+    on_complete:
+      - type: "email"
+        recipients:
+          - "reports@agnes.ai"
+      - type: "slack"
+        channel: "#reports"
+    on_error:
+      - type: "email"
+        recipients:
+          - "alerts@agnes.ai"
+      - type: "slack"
+        channel: "#alerts"
+  
+  retention:
+    enabled: true
+    policy:
+      daily: 30  # days
+      weekly: 90  # days
+      monthly: 365  # days
+  
+  cache:
+    enabled: true
+    redis:
+      url: "redis://redis:6379/5"
+      ttl: 3600
