@@ -1,0 +1,62 @@
+pipelines:
+  - name: user_activity_pipeline
+    type: async
+    source:
+      type: kafka
+      topic: user_activities
+      bootstrap_servers:
+        - "kafka-1:9092"
+        - "kafka-2:9092"
+    
+    transforms:
+      - name: filter_valid_events
+        type: filter
+        condition: "x.get('event_type') in ['login', 'logout', 'purchase']"
+      
+      - name: enrich_user_data
+        type: map
+        expression: "dict(x, timestamp=str(datetime.now()))"
+    
+    sink:
+      type: elasticsearch
+      index: user_activities
+      hosts:
+        - "http://elasticsearch:9200"
+    
+    window_size: 60
+    batch_size: 1000
+    retry_count: 3
+
+  - name: data_processing_pipeline
+    type: beam
+    source:
+      type: pubsub
+      subscription: "projects/agnes/subscriptions/raw-data"
+    
+    transforms:
+      - name: parse_json
+        type: map
+        expression: "json.loads(x)"
+      
+      - name: filter_valid_data
+        type: filter
+        condition: "x.get('status') == 'valid'"
+      
+      - name: transform_data
+        type: map
+        expression: "{'id': x['id'], 'processed_data': process_data(x['data'])}"
+    
+    sink:
+      type: bigquery
+      table: "agnes-project.dataset.processed_data"
+      schema:
+        fields:
+          - name: id
+            type: STRING
+          - name: processed_data
+            type: STRING
+          - name: timestamp
+            type: TIMESTAMP
+    
+    window_size: 300
+    batch_size: 5000
