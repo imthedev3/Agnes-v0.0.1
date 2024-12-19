@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agnes
+  namespace: agnes
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: agnes
+  template:
+    metadata:
+      labels:
+        app: agnes
+    spec:
+      containers:
+      - name: agnes
+        image: agnes:latest
+        ports:
+        - containerPort: 8000
+        - containerPort: 9090
+        env:
+        - name: AGNES_ENV
+          value: "production"
+        - name: AGNES_CONFIG_PATH
+          value: "/app/config/agnes_config.yaml"
+        volumeMounts:
+        - name: agnes-config
+          mountPath: /app/config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: agnes-config
+        configMap:
+          name: agnes-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agnes
+  namespace: agnes
+spec:
+  selector:
+    app: agnes
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+  type: LoadBalancer
+
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agnes
+  namespace: agnes
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: agnes
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      targetAverageUtilization: 80
