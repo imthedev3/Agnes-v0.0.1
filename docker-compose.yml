@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  agnes:
+    build: .
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+    environment:
+      - AGNES_ENV=production
+      - AGNES_LOG_LEVEL=INFO
+    depends_on:
+      - redis
+      - elasticsearch
+      - prometheus
+    networks:
+      - agnes-network
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - agnes-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - agnes-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.14.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - agnes-network
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    networks:
+      - agnes-network
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/grafana:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - agnes-network
+
+volumes:
+  redis-data:
+  elasticsearch-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  agnes-network:
+    driver: bridge
