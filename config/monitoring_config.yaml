@@ -1,0 +1,68 @@
+monitoring:
+  server:
+    host: "0.0.0.0"
+    port: 9090
+  
+  metrics:
+    collection_interval: 15
+    retention_days: 30
+    
+    system:
+      enabled: true
+      cpu: true
+      memory: true
+      disk: true
+      network: true
+    
+    application:
+      enabled: true
+      request_duration:
+        enabled: true
+        buckets: [0.1, 0.5, 1.0, 2.0, 5.0]
+      
+      request_count:
+        enabled: true
+        labels:
+          - method
+          - endpoint
+          - status
+      
+      error_tracking:
+        enabled: true
+        types:
+          - DatabaseError
+          - NetworkError
+          - ValidationError
+  
+  alerting:
+    enabled: true
+    handlers:
+      - type: email
+        recipients:
+          - "admin@agnes.ai"
+      - type: slack
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+    
+    rules:
+      - name: high_error_rate
+        condition: "error_count[5m] > 10"
+        severity: critical
+        channels:
+          - email
+          - slack
+      
+      - name: high_latency
+        condition: "request_duration_seconds_bucket{quantile=\"0.95\"} > 2"
+        severity: warning
+        channels:
+          - slack
+
+  dashboards:
+    enabled: true
+    grafana:
+      url: "http://grafana:3000"
+      api_key: "${GRAFANA_API_KEY}"
+      dashboards:
+        - name: "AGNES Overview"
+          folder: "AGNES"
+          refresh: "1m"
