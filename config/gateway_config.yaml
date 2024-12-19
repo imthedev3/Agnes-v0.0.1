@@ -1,0 +1,42 @@
+gateway:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "http://localhost:3000"
+    - "https://agnes.ai"
+  rate_limit: 100
+  rate_window: 60
+  
+  services:
+    core:
+      url: "http://agnes-core:8001"
+      timeout: 30
+      rate_limit: 50
+      circuit_breaker:
+        threshold: 5
+        timeout: 60
+    
+    brain:
+      url: "http://agnes-brain:8002"
+      timeout: 45
+      rate_limit: 30
+      circuit_breaker:
+        threshold: 3
+        timeout: 30
+    
+    monitoring:
+      url: "http://agnes-monitoring:8003"
+      timeout: 15
+      rate_limit: 100
+      circuit_breaker:
+        threshold: 10
+        timeout: 30
+  
+  security:
+    jwt_secret: "your-secret-key"
+    token_expiry: 3600
+    ssl_verify: true
+    allowed_headers:
+      - "Authorization"
+      - "Content-Type"
+      - "X-Request-ID"
