@@ -1,0 +1,45 @@
+version: 1.0
+
+logging:
+  level: INFO
+  elasticsearch:
+    url: "http://localhost:9200"
+    index_prefix: "agnes-logs-"
+  metrics:
+    prometheus:
+      enabled: true
+      port: 9090
+    monitoring_interval: 60
+
+monitoring:
+  system:
+    enabled: true
+    interval: 30
+    metrics:
+      - memory_usage
+      - cpu_usage
+      - disk_usage
+  application:
+    enabled: true
+    metrics:
+      - request_count
+      - response_time
+      - error_rate
+  alerts:
+    enabled: true
+    channels:
+      - type: email
+        recipients: ["alerts@example.com"]
+      - type: slack
+        webhook_url: "https://hooks.slack.com/..."
+
+performance:
+  cache:
+    enabled: true
+    type: redis
+    max_size: 1000
+    ttl: 3600
+  optimization:
+    batch_size: 32
+    worker_threads: 4
+    max_queue_size: 1000
