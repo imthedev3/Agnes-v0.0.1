@@ -1,0 +1,59 @@
+tracing:
+  enabled: true
+  service_name: "agnes"
+  
+  jaeger:
+    host: "jaeger"
+    port: 6831
+    sampling:
+      type: "probabilistic"
+      param: 1.0  # Sample 100% of traces
+  
+  propagation:
+    enabled: true
+    headers:
+      - "x-request-id"
+      - "x-b3-traceid"
+      - "x-b3-spanid"
+  
+  spans:
+    http:
+      enabled: true
+      attributes:
+        - "http.method"
+        - "http.url"
+        - "http.status_code"
+    
+    database:
+      enabled: true
+      attributes:
+        - "db.type"
+        - "db.statement"
+        - "db.instance"
+    
+    cache:
+      enabled: true
+      attributes:
+        - "cache.operation"
+        - "cache.key"
+    
+    messaging:
+      enabled: true
+      attributes:
+        - "messaging.system"
+        - "messaging.destination"
+  
+  filters:
+    enabled: true
+    exclude_paths:
+      - "/health"
+      - "/metrics"
+    
+    sensitive_data:
+      - "password"
+      - "token"
+      - "api_key"
+  
+  retention:
+    traces: 7  # days
+    spans: 3   # days
