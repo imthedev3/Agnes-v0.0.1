@@ -1,0 +1,117 @@
+sync:
+  sources:
+    mysql_source:
+      type: mysql
+      connection:
+        host: mysql.source
+        port: 3306
+        user: sync_user
+        password: "${MYSQL_SOURCE_PASSWORD}"
+        db: source_db
+    
+    elasticsearch_source:
+      type: elasticsearch
+      connection: "http://elasticsearch.source:9200"
+    
+    redis_source:
+      type: redis
+      connection:
+        host: redis.source
+        port: 6379
+        password: "${REDIS_SOURCE_PASSWORD}"
+  
+  targets:
+    mysql_target:
+      type: mysql
+      connection:
+        host: mysql.target
+        port: 3306
+        user: sync_user
+        password: "${MYSQL_TARGET_PASSWORD}"
+        db: target_db
+      table: target_table
+    
+    elasticsearch_target:
+      type: elasticsearch
+      connection: "http://elasticsearch.target:9200"
+      index: target_index
+    
+    redis_target:
+      type: redis
+      connection:
+        host: redis.target
+        port: 6379
+        password: "${REDIS_TARGET_PASSWORD}"
+  
+  tasks:
+    user_sync:
+      source: mysql_source
+      target: elasticsearch_target
+      strategy: incremental
+      schedule: "0 */6 * * *"  # Every 6 hours
+      query:
+        sql: "SELECT * FROM users WHERE updated_at > %s"
+        params: ["{{ last_sync }}"]
+      mapping:
+        id: user_id
+        name: full_name
+        email: email_address
+      filters:
+        - field: status
+          op: eq
+          value: active
+      batch_size: 1000
+    
+    product_sync:
+      source: elasticsearch_source
+      target: mysql_target
+      strategy: full
+      schedule: "0 0 * * *"  # Daily
+      query:
+        index: products
+        query:
+          term:
+            status: active
+      mapping:
+        product_id: id
+        name: product_name
+        price: unit_price
+      batch_size: 500
+  
+  validation:
+    enabled: true
+    rules:
+      required_fields:
+        - id
+        - name
+      data_types:
+        id: integer
+        email: email
+        price: number
+    
+    actions:
+      on_error: skip
+      max_errors: 100
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - name: sync_records_total
+        type: counter
+        labels:
+          - task
+          - status
+      - name: sync_duration_seconds
+        type: histogram
+        labels:
+          - task
+    
+    alerts:
+      error_threshold: 0.01  # 1% error rate
+      latency_threshold: 300  # 5 minutes
+  
+  retry:
+    enabled: true
+    max_attempts: 3
+    delay: 60
+    backoff_factor: 2
