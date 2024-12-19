@@ -1,0 +1,40 @@
+name: "example-service"
+version: "1.0.0"
+host: "0.0.0.0"
+port: 8080
+
+discovery:
+  enabled: true
+  consul:
+    host: "consul"
+    port: 8500
+
+metrics:
+  enabled: true
+  prometheus:
+    port: 9096
+
+tracing:
+  enabled: true
+  jaeger:
+    host: "jaeger"
+    port: 6831
+
+logging:
+  level: "INFO"
+  format: "json"
+  handlers:
+    console:
+      enabled: true
+    file:
+      enabled: true
+      path: "/var/log/agnes/example-service.log"
+
+auth:
+  enabled: true
+  jwt:
+    secret: "${JWT_SECRET}"
+
+dependencies:
+  - "auth-service"
+  - "database-service"
