@@ -1,0 +1,91 @@
+auth:
+  storage:
+    type: mysql
+    mysql:
+      host: "mysql"
+      port: 3306
+      user: "agnes"
+      password: "${MYSQL_PASSWORD}"
+      db: "agnes"
+      charset: "utf8mb4"
+    elasticsearch:
+      url: "http://elasticsearch:9200"
+      index_prefix: "auth"
+  
+  cache:
+    redis_url: "redis://redis:6379/2"
+    ttl: 300
+  
+  jwt:
+    secret: "${JWT_SECRET}"
+    access_token_lifetime: 30  # minutes
+    refresh_token_lifetime: 7  # days
+    algorithm: "HS256"
+  
+  oauth:
+    enabled: true
+    providers:
+      google:
+        client_id: "${GOOGLE_CLIENT_ID}"
+        client_secret: "${GOOGLE_CLIENT_SECRET}"
+        redirect_uri: "https://app.agnes.ai/auth/google/callback"
+        scopes:
+          - "openid"
+          - "profile"
+          - "email"
+      
+      github:
+        client_id: "${GITHUB_CLIENT_ID}"
+        client_secret: "${GITHUB_CLIENT_SECRET}"
+        redirect_uri: "https://app.agnes.ai/auth/github/callback"
+        scopes:
+          - "user:email"
+  
+  ldap:
+    enabled: false
+    host: "ldap.example.com"
+    port: 389
+    bind_dn: "cn=admin,dc=example,dc=com"
+    bind_password: "${LDAP_PASSWORD}"
+    user_search_base: "ou=users,dc=example,dc=com"
+    user_search_filter: "(uid=%(username)s)"
+    group_search_base: "ou=groups,dc=example,dc=com"
+    group_search_filter: "(memberUid=%(username)s)"
+  
+  roles:
+    admin:
+      description: "System administrator"
+      permissions:
+        - "admin"
+        - "read"
+        - "write"
+        - "delete"
+    
+    editor:
+      description: "Content editor"
+      permissions:
+        - "read"
+        - "write"
+    
+    viewer:
+      description: "Read-only user"
+      permissions:
+        - "read"
+  
+  password:
+    min_length: 8
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special: true
+    max_attempts: 5
+    lockout_duration: 300  # seconds
+  
+  session:
+    enabled: true
+    cookie_name: "agnes_session"
+    cookie_secure: true
+    cookie_httponly: true
+    cookie_samesite: "lax"
+    max_age: 86400  # 24 hours
+    redis_url: "redis://redis:6379/3"
