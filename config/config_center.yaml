@@ -1,0 +1,71 @@
+config_center:
+  store:
+    type: consul
+    host: consul
+    port: 8500
+    token: "${CONSUL_TOKEN}"
+  
+  encryption:
+    enabled: true
+    key: "${CONFIG_ENCRYPTION_KEY}"
+    algorithms:
+      - AES-256-GCM
+      - ChaCha20-Poly1305
+  
+  cache:
+    enabled: true
+    ttl: 300  # 5 minutes
+    max_size: 1000
+  
+  watchers:
+    enabled: true
+    refresh_interval: 30
+    paths:
+      - "agnes/config/"
+      - "agnes/secrets/"
+  
+  validation:
+    enabled: true
+    schemas:
+      database:
+        type: object
+        properties:
+          host:
+            type: string
+          port:
+            type: integer
+          username:
+            type: string
+          password:
+            type: string
+            encrypted: true
+      
+      redis:
+        type: object
+        properties:
+          host:
+            type: string
+          port:
+            type: integer
+          password:
+            type: string
+            encrypted: true
+  
+  backup:
+    enabled: true
+    schedule: "0 0 * * *"
+    retention_days: 30
+    storage:
+      type: s3
+      bucket: "agnes-config-backup"
+      prefix: "config/"
+  
+  audit:
+    enabled: true
+    events:
+      - set
+      - delete
+      - encrypt
+    storage:
+      type: elasticsearch
+      index: "agnes-config-audit"
