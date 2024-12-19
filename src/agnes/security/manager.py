@@ -259,4 +259,225 @@ class SecurityManager:
         """Encrypt data"""
         if isinstance(data, str):
             data = data.encode()
-        return self.fernet.encrypt(
+        return self.fernet.encrypt(data).decode()
+    
+    async def decrypt(self, encrypted: str) -> bytes:
+        """Decrypt data"""
+        return self.fernet.decrypt(encrypted.encode())
+    
+    def hash_password(self, password: str) -> str:
+        """Hash password"""
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode(), salt).decode()
+    
+    async def validate_password(self, password: str) -> bool:
+        """Validate password strength"""
+        policy = self.policies['password']
+        
+        if len(password) < policy['min_length']:
+            return False
+        
+        if policy['require_uppercase'] and \
+           not any(c.isupper() for c in password):
+            return False
+        
+        if policy['require_lowercase'] and \
+           not any(c.islower() for c in password):
+            return False
+        
+        if policy['require_numbers'] and \
+           not any(c.isdigit() for c in password):
+            return False
+        
+        if policy['require_special'] and \
+           not any(c in policy['special_chars'] for c in password):
+            return False
+        
+        return True
+    
+    async def generate_token(self,
+                           user: str,
+                           expires_in: int = 3600) -> str:
+        """Generate authentication token"""
+        token = secrets.token_urlsafe(32)
+        
+        await self.cache.set(
+            f"token:{token}",
+            json.dumps({
+                'user': user,
+                'created_at': datetime.utcnow().timestamp(),
+                'expires_at': (datetime.utcnow() + \
+                             timedelta(seconds=expires_in)).timestamp()
+            }),
+            ex=expires_in
+        )
+        
+        return token
+    
+    async def generate_apikey(self,
+                            name: str,
+                            user: str,
+                            expires_in: Optional[int] = None) -> str:
+        """Generate API key"""
+        key = f"ak_{secrets.token_urlsafe(32)}"
+        
+        await self.storage.store_apikey({
+            'key': key,
+            'name': name,
+            'user': user,
+            'created_at': datetime.utcnow().timestamp(),
+            'expires_at': (datetime.utcnow() + \
+                          timedelta(seconds=expires_in)).timestamp() \
+                          if expires_in else None,
+            'active': True
+        })
+        
+        return key
+    
+    async def validate_input(self,
+                           input_type: str,
+                           value: str) -> bool:
+        """Validate user input"""
+        policy = self.policies['input'].get(input_type)
+        if not policy:
+            return True
+        
+        if 'max_length' in policy and \
+           len(value) > policy['max_length']:
+            return False
+        
+        if 'pattern' in policy and \
+           not re.match(policy['pattern'], value):
+            return False
+        
+        if 'blacklist' in policy and \
+           any(bad in value.lower() for bad in policy['blacklist']):
+            return False
+        
+        return True
+    
+    async def validate_ip(self, ip: str) -> bool:
+        """Validate IP address"""
+        try:
+            addr = ipaddress.ip_address(ip)
+            
+            # Check if IP is in blacklist
+            if any(addr in ipaddress.ip_network(net) \
+                  for net in self.policies['ip']['blacklist']):
+                return False
+            
+            # Check if IP is in whitelist
+            if self.policies['ip']['whitelist'] and \
+               not any(addr in ipaddress.ip_network(net) \
+                      for net in self.policies['ip']['whitelist']):
+                return False
+            
+            return True
+        
+        except ValueError:
+            return False
+    
+    async def validate_url(self, url: str) -> bool:
+        """Validate URL"""
+        try:
+            parsed = urlparse(url)
+            
+            # Check scheme
+            if parsed.scheme not in self.policies['url']['allowed_schemes']:
+                return False
+            
+            # Check domain
+            if any(domain in parsed.netloc \
+                  for domain in self.policies['url']['blacklist']):
+                return False
+            
+            return True
+        
+        except Exception:
+            return False
+    
+    async def log_security_event(self,
+                               event_type: str,
+                               level: SecurityLevel,
+                               source: str,
+                               target: str,
+                               action: str,
+                               status: str,
+                               metadata: Dict[str, Any],
+                               details: str = ""):
+        """Log security event"""
+        event = SecurityEvent(
+            id=f"evt_{secrets.token_hex(8)}",
+            type=event_type,
+            level=level,
+            source=source,
+            target=target,
+            action=action,
+            status=status,
+            timestamp=datetime.utcnow(),
+            metadata=metadata,
+            details=details
+        )
+        
+        # Store event
+        await self.storage.store_event(event)
+        
+        # Send alerts for high severity events
+        if level in [SecurityLevel.HIGH, SecurityLevel.CRITICAL]:
+            await self._send_security_alert(event)
+    
+    async def _send_security_alert(self, event: SecurityEvent):
+        """Send security alert"""
+        if not self.config.get('alerts', {}).get('enabled', False):
+            return
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                await session.post(
+                    self.config['alerts']['webhook_url'],
+                    json={
+                        'event_id': event.id,
+                        'type': event.type,
+                        'level': event.level.value,
+                        'source': event.source,
+                        'target': event.target,
+                        'action': event.action,
+                        'status': event.status,
+                        'timestamp': event.timestamp.isoformat(),
+                        'metadata': event.metadata,
+                        'details': event.details
+                    }
+                )
+        except Exception as e:
+            self.logger.error(f"Failed to send security alert: {e}")
+
+class RateLimiter:
+    def __init__(self,
+                 redis: aioredis.Redis,
+                 limit: int,
+                 window: int):
+        self.redis = redis
+        self.limit = limit
+        self.window = window
+    
+    async def check(self, key: str) -> bool:
+        """Check rate limit"""
+        current = await self.redis.incr(f"ratelimit:{key}")
+        
+        if current == 1:
+            await self.redis.expire(f"ratelimit:{key}", self.window)
+        
+        return current <= self.limit
+
+class SecurityStorage:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.type = config['type']
+        self._setup_storage()
+    
+    def _setup_storage(self):
+        """Setup storage backend"""
+        if self.type == 'mysql':
+            self.pool = aiomysql.create_pool(
+                **self.config['mysql']
+            )
