@@ -1,0 +1,58 @@
+discovery:
+  type: consul
+  host: consul
+  port: 8500
+  
+  health_check:
+    interval: 30
+    timeout: 5
+    deregister_critical_service_after: 60
+  
+  dns:
+    enabled: true
+    domain: "service.consul"
+    ttl: 30
+  
+  load_balancing:
+    default_strategy: round_robin
+    strategies:
+      - round_robin
+      - random
+      - weighted
+      - least_connections
+  
+  cache:
+    enabled: true
+    ttl: 60
+  
+  metadata:
+    datacenter: dc1
+    environment: production
+    version: "1.0.0"
+  
+  circuit_breaker:
+    enabled: true
+    threshold: 0.5
+    recovery_timeout: 60
+    min_requests: 10
+  
+  retry:
+    enabled: true
+    max_attempts: 3
+    initial_backoff: 1
+    max_backoff: 30
+    backoff_multiplier: 2
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - name: service_discovery_requests_total
+        type: counter
+        labels:
+          - service
+          - status
+      - name: service_health_check_duration_seconds
+        type: histogram
+        labels:
+          - service
+          - status
