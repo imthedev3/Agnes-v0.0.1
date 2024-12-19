@@ -1,0 +1,95 @@
+monitor:
+  collection_interval: 10  # seconds
+  history_retention_hours: 24
+  
+  storage:
+    type: elasticsearch
+    url: "http://elasticsearch:9200"
+    index_settings:
+      number_of_shards: 1
+      number_of_replicas: 1
+    retention_days: 30
+  
+  thresholds:
+    system_cpu_usage:
+      warning: 70.0
+      error: 85.0
+      critical: 95.0
+      duration: 300
+      frequency: 3
+    
+    system_memory_percent:
+      warning: 80.0
+      error: 90.0
+      critical: 95.0
+      duration: 300
+      frequency: 3
+    
+    system_disk_percent:
+      warning: 85.0
+      error: 90.0
+      critical: 95.0
+      duration: 3600
+      frequency: 3
+    
+    docker_cpu_usage:
+      warning: 80.0
+      error: 90.0
+      critical: 95.0
+      duration: 300
+      frequency: 3
+    
+    docker_memory_usage:
+      warning: 80.0
+      error: 90.0
+      critical: 95.0
+      duration: 300
+      frequency: 3
+  
+  alerts:
+    handlers:
+      email:
+        enabled: true
+        recipients:
+          - "ops@agnes.ai"
+        from: "alerts@agnes.ai"
+        smtp:
+          host: "smtp.agnes.ai"
+          port: 587
+          username: "${SMTP_USERNAME}"
+          password: "${SMTP_PASSWORD}"
+      
+      slack:
+        enabled: true
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#alerts"
+      
+      prometheus:
+        enabled: true
+        url: "http://prometheus:9091/metrics"
+  
+  exporters:
+    prometheus:
+      enabled: true
+      port: 9100
+      metrics:
+        - system_cpu_usage
+        - system_memory_percent
+        - system_disk_percent
+        - docker_cpu_usage
+        - docker_memory_usage
+    
+    influxdb:
+      enabled: true
+      url: "http://influxdb:8086"
+      database: "agnes"
+      username: "${INFLUXDB_USERNAME}"
+      password: "${INFLUXDB_PASSWORD}"
+  
+  dashboards:
+    enabled: true
+    grafana:
+      url: "http://grafana:3000"
+      api_key: "${GRAFANA_API_KEY}"
+      folder: "Agnes Monitoring"
+      refresh: "1m"
