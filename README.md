@@ -25,7 +25,7 @@
 |                                                                                        |
 +----------------------------------------------------------------------------------------+
 
-🎯 Key Features
+## 🎯 Key Features
 Neural-Symbolic Integration: Combines neural networks with symbolic reasoning
 Adaptive Learning: Real-time adaptation to new scenarios
 Multi-Modal Processing: Handles text, images, audio, and video
@@ -34,7 +34,7 @@ Advanced Memory System: Hierarchical memory with long-term retention
 Safety-First Design: Built-in ethical constraints and safety monitors
 Tool Integration: Flexible plugin system for external tools
 
-🚀 Quick Start
+## 🚀 Quick Start
 from agnes import AgnesAgent, Config
 
 # Initialize the agent
@@ -54,7 +54,7 @@ async def main():
     )
     print(result)
 
-📊 System Architecture
+## 📊 System Architecture
 System Layers:
 ┌─────────────────────────────┐
 │     Application Layer       │
@@ -66,19 +66,20 @@ System Layers:
 │     Core Engine Layer      │
 └─────────────────────────────┘
 
-🛠 Installation
+## 🛠 Installation
 pip install agnes-framework
 
-📚 Documentation
+## 📚 Documentation
 Visit our Documentation for detailed guides and API reference.
 
-🤝 Contributing
+## 🤝 Contributing
 We welcome contributions! Please see our Contributing Guidelines
+We might make a coin on pump.fun for long term run.
 
-📄 License
+## 📄 License
 MIT License - see the LICENSE file for details
 
-🔗 Related Projects
+## 🔗 Related Projects
 AGNES Studio - Visual Interface
 AGNES Cloud - Cloud Deployment
 AGNES Extensions - Plugin Marketplace
