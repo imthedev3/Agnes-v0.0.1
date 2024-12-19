@@ -33,6 +33,7 @@ Agnes is a modern AI application development framework that provides a complete 
 ### Installation
 ```bash
 pip install agnes-ai
+
 from agnes import Agnes
 
 # Create Agnes instance
