@@ -1,0 +1,55 @@
+automation:
+  namespace: "agnes"
+  
+  kubernetes:
+    context: "agnes-cluster"
+    config_path: "/etc/kubernetes/config"
+    
+  infrastructure:
+    terraform_path: "/opt/agnes/terraform"
+    state_bucket: "agnes-terraform-state"
+    templates_path: "/opt/agnes/templates"
+  
+  ansible:
+    inventory_path: "/opt/agnes/inventory"
+    playbook_path: "/opt/agnes/playbooks"
+    roles_path: "/opt/agnes/roles"
+  
+  monitoring:
+    prometheus:
+      url: "http://prometheus:9090"
+      config_template: "prometheus.yml.j2"
+      rules_path: "/etc/prometheus/rules"
+    
+    grafana:
+      url: "http://grafana:3000"
+      api_key: "${GRAFANA_API_KEY}"
+      dashboards_path: "/opt/agnes/dashboards"
+  
+  backup:
+    path: "/var/backups/agnes"
+    retention_days: 30
+    schedule: "0 2 * * *"
+    
+    database:
+      host: "postgres"
+      user: "agnes"
+      name: "agnes_db"
+      password: "${DB_PASSWORD}"
+    
+    files:
+      path: "/opt/agnes/data"
+  
+  notifications:
+    slack:
+      webhook_url: "${SLACK_WEBHOOK_URL}"
+      channel: "#agnes-ops"
+    
+    email:
+      smtp_host: "smtp.gmail.com"
+      smtp_port: 587
+      username: "agnes@company.com"
+      password: "${SMTP_PASSWORD}"
+      recipients:
+        - "ops@company.com"
+        - "admin@company.com"
