@@ -1,0 +1,59 @@
+websocket:
+  host: "0.0.0.0"
+  port: 8765
+  
+  security:
+    jwt_secret: "${JWT_SECRET}"
+    require_authentication: true
+  
+  connection:
+    ping_interval: 30
+    ping_timeout: 60
+    max_message_size: 65536
+  
+  rate_limiting:
+    enabled: true
+    max_messages: 100
+    time_window: 60
+  
+  channels:
+    system:
+      description: "System notifications"
+      requires_auth: true
+    chat:
+      description: "Chat messages"
+      requires_auth: true
+    notifications:
+      description: "User notifications"
+      requires_auth: true
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - name: websocket_connections_total
+        type: gauge
+        labels:
+          - status
+      - name: websocket_messages_total
+        type: counter
+        labels:
+          - type
+          - channel
+  
+  handlers:
+    chat_message:
+      enabled: true
+      rate_limit: 10
+      max_length: 1000
+    
+    status_update:
+      enabled: true
+      rate_limit: 5
+    
+    file_transfer:
+      enabled: true
+      max_size: 10485760  # 10MB
+      allowed_types:
+        - image/jpeg
+        - image/png
+        - application/pdf
