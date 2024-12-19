@@ -1,0 +1,38 @@
+loadbalancer:
+  strategy: weighted_round_robin
+  health_check_interval: 30
+  max_failed_checks: 3
+  
+  servers:
+    - host: "server-1"
+      port: 8001
+      weight: 3
+      max_connections: 100
+      health_check_path: "/health"
+    
+    - host: "server-2"
+      port: 8002
+      weight: 2
+      max_connections: 80
+      health_check_path: "/health"
+    
+    - host: "server-3"
+      port: 8003
+      weight: 1
+      max_connections: 50
+      health_check_path: "/health"
+  
+  session_persistence:
+    enabled: true
+    cookie_name: "SERVERID"
+    timeout: 3600
+  
+  ssl:
+    enabled: true
+    cert_file: "/etc/ssl/certs/agnes.crt"
+    key_file: "/etc/ssl/private/agnes.key"
+  
+  monitoring:
+    enabled: true
+    metrics_port: 9090
+    metrics_path: "/metrics"
