@@ -1,0 +1,37 @@
+security:
+  encryption:
+    key_size: 32
+    algorithm: "Fernet"
+    key_rotation_days: 30
+  
+  rate_limiting:
+    requests_per_minute: 60
+    burst_size: 10
+    timeout_seconds: 300
+  
+  access_control:
+    token_expiry_minutes: 30
+    max_failed_attempts: 5
+    lockout_duration_minutes: 15
+  
+  request_validation:
+    max_content_length: 10485760  # 10MB
+    allowed_content_types:
+      - "application/json"
+      - "multipart/form-data"
+    
+  headers:
+    X-Content-Type-Options: "nosniff"
+    X-Frame-Options: "DENY"
+    X-XSS-Protection: "1; mode=block"
+    Content-Security-Policy: "default-src 'self'"
+    
+  cors:
+    allowed_origins:
+      - "https://api.agnes.ai"
+    allowed_methods:
+      - "GET"
+      - "POST"
+    allowed_headers:
+      - "Authorization"
+      - "Content-Type"
